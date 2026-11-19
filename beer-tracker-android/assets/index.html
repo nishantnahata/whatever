@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Beer Tracker</title>
+<style>
+  :root{
+    --bg:#fbf6ec; --card:#fffdf8; --ink:#2a1f14; --muted:#8a7a66; --line:#eadfcc;
+    --amber:#e09a1f; --amber-d:#b8740a; --foam:#fff7e6; --red:#c2492f; --green:#4f7a3a;
+    --serif: "Noto Serif", Georgia, serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#1a140e; --card:#241c14; --ink:#f5ead8; --muted:#a8977f; --line:#3a2e22;
+      --amber:#f0ad3a; --amber-d:#d08d1c; --foam:#2e2418; }
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:520px;margin:0 auto;padding:18px 16px 60px}
+  h1{font-family:var(--serif);font-weight:800;font-size:26px;margin:4px 0 2px;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px}
+  .weeknav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+  .weeknav button{background:none;border:1px solid var(--line);color:var(--ink);border-radius:12px;width:40px;height:40px;font-size:18px;cursor:pointer}
+  .weeknav button:disabled{opacity:.3;cursor:default}
+  .weeklabel{text-align:center;font-weight:600}
+  .weeklabel small{display:block;color:var(--muted);font-weight:400;font-size:12px}
+  .hero{display:flex;align-items:center;gap:18px}
+  .glass{width:74px;height:100px;flex:none}
+  .stats{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat .n{font-family:var(--serif);font-size:34px;font-weight:800;line-height:1}
+  .stat .l{color:var(--muted);font-size:12px;margin-top:3px}
+  .bar{height:8px;background:var(--line);border-radius:6px;overflow:hidden;margin-top:12px}
+  .bar>i{display:block;height:100%;background:var(--amber);border-radius:6px;transition:width .4s}
+  .bar.over>i{background:var(--red)}
+  .barnote{font-size:12px;color:var(--muted);margin-top:6px;display:flex;justify-content:space-between}
+  .days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:16px;align-items:end;height:90px}
+  .day{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px}
+  .day .col{width:100%;max-width:30px;background:var(--amber);border-radius:6px 6px 3px 3px;min-height:3px;transition:height .3s}
+  .day .col.zero{background:var(--line)}
+  .day .c{font-size:11px;font-weight:600;min-height:14px}
+  .day .d{font-size:11px;color:var(--muted)}
+  .day.today .d{color:var(--amber-d);font-weight:700}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 10px;font-weight:600}
+  .quick{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .q{background:var(--foam);border:1px solid var(--line);border-radius:14px;padding:10px 4px;text-align:center;cursor:pointer;color:var(--ink);font:inherit}
+  .q:active{transform:scale(.96)}
+  .q b{display:block;font-size:20px;margin-bottom:2px}
+  .q span{font-size:12px;font-weight:600}
+  .q em{display:block;font-style:normal;font-size:11px;color:var(--muted)}
+  details{margin-top:12px}
+  summary{cursor:pointer;color:var(--amber-d);font-weight:600;font-size:14px}
+  form.custom{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+  form.custom label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+  form.custom .full{grid-column:1/-1}
+  input,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 10px;width:100%}
+  .btn{background:var(--amber);color:#2a1f14;border:none;border-radius:12px;padding:11px;font:inherit;font-weight:600;cursor:pointer}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+  .row label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+  ul.log{list-style:none;margin:0;padding:0}
+  ul.log li{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+  ul.log li:first-child{border-top:none}
+  .ico{font-size:20px;width:28px;text-align:center}
+  .meta{flex:1;min-width:0}
+  .meta .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .meta .s{font-size:12px;color:var(--muted)}
+  .del{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:4px 8px;border-radius:8px}
+  .del:active{color:var(--red);background:var(--foam)}
+  .empty{color:var(--muted);text-align:center;padding:14px 0;font-size:14px}
+  .hist{display:flex;align-items:end;gap:6px;height:110px}
+  .hb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px;cursor:pointer}
+  .hb .col{width:100%;background:var(--amber);opacity:.55;border-radius:6px 6px 3px 3px;min-height:3px}
+  .hb.sel .col{opacity:1}
+  .hb .c{font-size:11px;font-weight:600}
+  .hb .d{font-size:10px;color:var(--muted);white-space:nowrap}
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(80px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;transition:transform .25s;display:flex;gap:12px;align-items:center;z-index:9;white-space:nowrap}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  .toast button{background:none;border:none;color:var(--amber);font:inherit;font-weight:700;cursor:pointer}
+  .sync{font-size:11px;color:var(--muted);text-align:center;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🍺 Beer Tracker</h1>
+  <div class="sub">Tap to log a drink. Weeks run Monday to Sunday.</div>
+
+  <div class="card">
+    <div class="weeknav">
+      <button id="prev" aria-label="Previous week">‹</button>
+      <div class="weeklabel" id="weekLabel"></div>
+      <button id="next" aria-label="Next week">›</button>
+    </div>
+    <div class="hero">
+      <svg class="glass" viewBox="0 0 74 100" aria-hidden="true">
+        <defs><clipPath id="gc"><path d="M8 8 L66 8 L60 94 L14 94 Z"/></clipPath></defs>
+        <g clip-path="url(#gc)">
+          <rect x="0" y="0" width="74" height="100" fill="var(--line)"/>
+          <rect id="beerFill" x="0" y="94" width="74" height="0" fill="var(--amber)" style="transition:all .5s"/>
+          <rect id="foam" x="0" y="88" width="74" height="7" fill="var(--foam)" style="transition:all .5s"/>
+        </g>
+        <path d="M8 8 L66 8 L60 94 L14 94 Z" fill="none" stroke="var(--muted)" stroke-width="2.5" stroke-linejoin="round"/>
+      </svg>
+      <div class="stats">
+        <div class="stat"><div class="n" id="sDrinks">0</div><div class="l">drinks</div></div>
+        <div class="stat"><div class="n" id="sUnits">0</div><div class="l">UK units</div></div>
+        <div class="stat"><div class="n" id="sPints">0</div><div class="l">pints (volume)</div></div>
+        <div class="stat"><div class="n" id="sDry">0</div><div class="l">dry days</div></div>
+      </div>
+    </div>
+    <div class="bar" id="ubar"><i id="ubarFill" style="width:0"></i></div>
+    <div class="barnote"><span id="unote">0 of 14 units</span><span>UK low-risk guide: 14/week</span></div>
+    <div class="days" id="days"></div>
+  </div>
+
+  <div class="card">
+    <h2>Quick add</h2>
+    <div class="quick" id="quick"></div>
+    <div class="row">
+      <label>Strength (ABV %)<input id="qAbv" type="number" step="0.1" min="0" max="20" value="4.5" inputmode="decimal"></label>
+      <label>When<select id="qDay"></select></label>
+    </div>
+    <details>
+      <summary>Add with details</summary>
+      <form class="custom" id="customForm">
+        <label class="full">Beer name<input id="cName" placeholder="e.g. Neck Oil" maxlength="60"></label>
+        <label>Size (ml)<input id="cMl" type="number" min="1" value="568" inputmode="numeric"></label>
+        <label>ABV %<input id="cAbv" type="number" step="0.1" min="0" value="4.5" inputmode="decimal"></label>
+        <label>How many<input id="cQty" type="number" min="1" max="20" value="1" inputmode="numeric"></label>
+        <label>Day<select id="cDay"></select></label>
+        <button class="btn full" type="submit">Add</button>
+      </form>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>This week's log</h2>
+    <ul class="log" id="log"></ul>
+  </div>
+
+  <div class="card">
+    <h2>Last 8 weeks</h2>
+    <div class="hist" id="hist"></div>
+  </div>
+  <div class="sync" id="sync">Saved on this phone</div>
+</div>
+<div class="toast" id="toast"><span id="toastMsg"></span><button id="undo">Undo</button></div>
+
+<script>
+const SIZES = [
+  {key:'pint', label:'Pint', ml:568, icon:'🍺'},
+  {key:'half', label:'Half', ml:284, icon:'🥃'},
+  {key:'can',  label:'Can',  ml:440, icon:'🥫'},
+  {key:'bottle',label:'Bottle',ml:330, icon:'🍾'},
+];
+const DOW = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const KEY = 'beer-tracker-v1';
+
+let entries = [];         // {id, ts, ml, abv, name, size}
+let weekOffset = 0;       // 0 = this week
+let lastAdded = null;
+
+function load(){
+  try{
+    const raw = JSON.parse(localStorage.getItem(KEY)||'[]');
+    entries = Array.isArray(raw) ? raw.filter(e=>e && typeof e.ts==='number' && e.ml && e.abv!=null) : [];
+  }catch(e){ entries=[]; }
+}
+function save(){
+  try{ localStorage.setItem(KEY, JSON.stringify(entries)); return true; }catch(e){ return false; }
+}
+
+function weekStart(d){ const x=new Date(d); x.setHours(0,0,0,0); const wd=(x.getDay()+6)%7; x.setDate(x.getDate()-wd); return x; }
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+function units(e){ return e.ml*e.abv/1000; }
+function fmt1(n){ return (Math.round(n*10)/10).toString(); }
+function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function curStart(){ return addDays(weekStart(new Date()), weekOffset*7); }
+function inWeek(start){ const end=addDays(start,7); return entries.filter(e=>e.ts>=+start && e.ts<+end); }
+
+function fillDaySelects(){
+  const start=curStart(); const today=new Date(); today.setHours(0,0,0,0);
+  const opts=[]; let def=0;
+  for(let i=0;i<7;i++){
+    const d=addDays(start,i);
+    if(d>today) break;
+    const isToday=+d===+today;
+    if(isToday) def=i;
+    opts.push(`<option value="${i}">${isToday?'Today':DOW[i]+' '+d.getDate()}</option>`);
+  }
+  if(!opts.length) opts.push('<option value="0">Mon</option>');
+  if(weekOffset<0) def=opts.length-1;
+  for(const id of ['qDay','cDay']){ const s=document.getElementById(id); s.innerHTML=opts.join(''); s.value=def; }
+}
+
+function tsFor(dayIdx){
+  const d=addDays(curStart(), +dayIdx); const now=new Date();
+  if(d.toDateString()===now.toDateString()) return Date.now();
+  d.setHours(20,0,0,0); return +d;
+}
+
+function render(){
+  const start=curStart(); const end=addDays(start,6);
+  const wk=inWeek(start);
+  const opt={day:'numeric',month:'short'};
+  document.getElementById('weekLabel').innerHTML =
+    (weekOffset===0?'This week':weekOffset===-1?'Last week':`${-weekOffset} weeks ago`) +
+    `<small>${start.toLocaleDateString('en-GB',opt)} – ${end.toLocaleDateString('en-GB',opt)}</small>`;
+  document.getElementById('next').disabled = weekOffset>=0;
+
+  const drinks=wk.length, u=wk.reduce((a,e)=>a+units(e),0), pints=wk.reduce((a,e)=>a+e.ml,0)/568;
+  const today=new Date(); today.setHours(0,0,0,0);
+  const perDay=Array(7).fill(0);
+  wk.forEach(e=>{ perDay[(new Date(e.ts).getDay()+6)%7]++; });
+  let elapsed=0, dry=0;
+  for(let i=0;i<7;i++){ if(addDays(start,i)<=today){ elapsed++; if(!perDay[i]) dry++; } }
+  document.getElementById('sDrinks').textContent=drinks;
+  document.getElementById('sUnits').textContent=fmt1(u);
+  document.getElementById('sPints').textContent=fmt1(pints);
+  document.getElementById('sDry').textContent=`${dry}/${elapsed}`;
+
+  const pct=Math.min(100,u/14*100);
+  document.getElementById('ubarFill').style.width=pct+'%';
+  document.getElementById('ubar').classList.toggle('over',u>14);
+  document.getElementById('unote').textContent=`${fmt1(u)} of 14 units`;
+  const fillH=Math.min(1,u/14)*86;
+  document.getElementById('beerFill').setAttribute('y',94-fillH);
+  document.getElementById('beerFill').setAttribute('height',fillH);
+  document.getElementById('foam').setAttribute('y',Math.max(2,94-fillH-6));
+  document.getElementById('foam').setAttribute('height',fillH>0?7:0);
+
+  const max=Math.max(3,...perDay);
+  document.getElementById('days').innerHTML=perDay.map((n,i)=>{
+    const isToday=+addDays(start,i)===+today;
+    return `<div class="day${isToday?' today':''}"><div class="c">${n||''}</div><div class="col${n?'':' zero'}" style="height:${n?n/max*60:3}px"></div><div class="d">${DOW[i][0]}</div></div>`;
+  }).join('');
+
+  const log=[...wk].sort((a,b)=>b.ts-a.ts);
+  document.getElementById('log').innerHTML = log.length ? log.map(e=>{
+    const s=SIZES.find(x=>x.key===e.size); const d=new Date(e.ts);
+    const when=d.toLocaleDateString('en-GB',{weekday:'short'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    return `<li><div class="ico">${s?s.icon:'🍺'}</div><div class="meta"><div class="t">${esc(e.name||(s?s.label:e.ml+'ml'))}</div><div class="s">${when} · ${e.ml}ml · ${e.abv}% · ${fmt1(units(e))}u</div></div><button class="del" data-id="${esc(e.id)}" aria-label="Delete">✕</button></li>`;
+  }).join('') : `<div class="empty">Nothing logged ${weekOffset===0?'yet this week':'this week'}.</div>`;
+
+  const weeks=[]; const base=weekStart(new Date());
+  for(let i=-7;i<=0;i++){ const s=addDays(base,i*7); weeks.push({i,s,n:inWeek(s).length}); }
+  const hm=Math.max(5,...weeks.map(w=>w.n));
+  document.getElementById('hist').innerHTML=weeks.map(w=>
+    `<div class="hb${w.i===weekOffset?' sel':''}" data-off="${w.i}"><div class="c">${w.n}</div><div class="col" style="height:${w.n/hm*70||3}px"></div><div class="d">${w.s.getDate()}/${w.s.getMonth()+1}</div></div>`
+  ).join('');
+
+  fillDaySelects();
+}
+
+function toast(msg){
+  document.getElementById('toastMsg').textContent=msg;
+  const t=document.getElementById('toast'); t.classList.add('show');
+  clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+function addEntry(e){
+  e.id = Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+  entries.push(e);
+  if(!save()){ entries=entries.filter(x=>x.id!==e.id); render(); toast('Couldn’t save — try again'); return null; }
+  render();
+  return e;
+}
+function removeEntry(id){
+  entries=entries.filter(x=>x.id!==id);
+  if(!save()) toast('Couldn’t delete');
+  render();
+}
+
+// UI wiring
+document.getElementById('quick').innerHTML=SIZES.map(s=>`<button class="q" data-k="${s.key}"><b>${s.icon}</b><span>${s.label}</span><em>${s.ml}ml</em></button>`).join('');
+document.getElementById('quick').addEventListener('click',ev=>{
+  const b=ev.target.closest('.q'); if(!b) return;
+  const s=SIZES.find(x=>x.key===b.dataset.k);
+  const abv=parseFloat(document.getElementById('qAbv').value)||4.5;
+  const e=addEntry({ts:tsFor(document.getElementById('qDay').value), ml:s.ml, abv, name:'', size:s.key});
+  if(e){ lastAdded=e.id; toast(`${s.label} added · ${fmt1(units(e))} units`); }
+});
+document.getElementById('customForm').addEventListener('submit',ev=>{
+  ev.preventDefault();
+  const ml=parseInt(document.getElementById('cMl').value)||568;
+  const abv=parseFloat(document.getElementById('cAbv').value)||4.5;
+  const qty=Math.min(20,Math.max(1,parseInt(document.getElementById('cQty').value)||1));
+  const name=document.getElementById('cName').value.trim();
+  const size=(SIZES.find(s=>s.ml===ml)||{}).key||'';
+  const ts=tsFor(document.getElementById('cDay').value);
+  for(let i=0;i<qty;i++){ const e=addEntry({ts:ts+i, ml, abv, name, size}); if(e) lastAdded=e.id; }
+  toast(`${qty} added`);
+  document.getElementById('cName').value=''; document.getElementById('cQty').value=1;
+});
+document.getElementById('log').addEventListener('click',ev=>{
+  const b=ev.target.closest('.del'); if(b) removeEntry(b.dataset.id);
+});
+document.getElementById('undo').addEventListener('click',()=>{
+  if(lastAdded){ removeEntry(lastAdded); lastAdded=null; }
+  document.getElementById('toast').classList.remove('show');
+});
+document.getElementById('prev').onclick=()=>{ if(weekOffset>-52){weekOffset--; render();} };
+document.getElementById('next').onclick=()=>{ if(weekOffset<0){weekOffset++; render();} };
+document.getElementById('hist').addEventListener('click',ev=>{
+  const b=ev.target.closest('.hb'); if(b){ weekOffset=+b.dataset.off; render(); }
+});
+
+// Refresh "today" when the app comes back to the foreground on a new day.
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) render(); });
+
+load();
+render();
+</script>
+</body>
+</html>
