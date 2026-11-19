@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="w_card">#241c14</color>
+    <color name="w_line">#3a2e22</color>
+    <color name="w_ink">#f5ead8</color>
+    <color name="w_muted">#a8977f</color>
+    <color name="w_amber">#f0ad3a</color>
+    <color name="w_red">#d9604a</color>
+</resources>

@@ -141,7 +141,7 @@
     <h2>Last 8 weeks</h2>
     <div class="hist" id="hist"></div>
   </div>
-  <div class="sync" id="sync">Saved on this phone</div>
+  <div class="sync" id="sync">Saved on this phone · add the Beer Tracker widget from your home screen</div>
 </div>
 <div class="toast" id="toast"><span id="toastMsg"></span><button id="undo">Undo</button></div>
 
@@ -159,15 +159,34 @@ let entries = [];         // {id, ts, ml, abv, name, size}
 let weekOffset = 0;       // 0 = this week
 let lastAdded = null;
 
+// The Android app exposes window.BeerBridge so the log is shared with the home-screen widget.
+// localStorage stays as a mirror (and the only store when opened outside the app).
+const bridge = window.BeerBridge || null;
+function clean(raw){ return Array.isArray(raw) ? raw.filter(e=>e && typeof e.ts==='number' && e.ml && e.abv!=null) : []; }
+function readLocal(){ try{ return clean(JSON.parse(localStorage.getItem(KEY)||'[]')); }catch(e){ return []; } }
 function load(){
-  try{
-    const raw = JSON.parse(localStorage.getItem(KEY)||'[]');
-    entries = Array.isArray(raw) ? raw.filter(e=>e && typeof e.ts==='number' && e.ml && e.abv!=null) : [];
-  }catch(e){ entries=[]; }
+  if(bridge){
+    let native=null;
+    try{ native=bridge.getEntries(); }catch(e){}
+    if(native==null){
+      // First run with the widget-capable app: move drinks logged by the old version over.
+      entries=readLocal(); save();
+    }else{
+      try{ entries=clean(JSON.parse(native)); }catch(e){ entries=[]; }
+    }
+  }else{
+    entries=readLocal();
+  }
 }
 function save(){
-  try{ localStorage.setItem(KEY, JSON.stringify(entries)); return true; }catch(e){ return false; }
+  const json=JSON.stringify(entries);
+  let ok=false;
+  if(bridge){ try{ bridge.setEntries(json); ok=true; }catch(e){} }
+  try{ localStorage.setItem(KEY, json); ok=true; }catch(e){}
+  return ok;
 }
+// Called by the app when it returns to the foreground (e.g. after a pint was added from the widget).
+window.reloadFromNative=function(){ load(); render(); };
 
 function weekStart(d){ const x=new Date(d); x.setHours(0,0,0,0); const wd=(x.getDay()+6)%7; x.setDate(x.getDate()-wd); return x; }
 function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
@@ -259,12 +278,14 @@ function toast(msg){
 
 function addEntry(e){
   e.id = Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+  if(bridge) load();
   entries.push(e);
   if(!save()){ entries=entries.filter(x=>x.id!==e.id); render(); toast('Couldn’t save — try again'); return null; }
   render();
   return e;
 }
 function removeEntry(id){
+  if(bridge) load();
   entries=entries.filter(x=>x.id!==id);
   if(!save()) toast('Couldn’t delete');
   render();
@@ -305,7 +326,7 @@ document.getElementById('hist').addEventListener('click',ev=>{
 });
 
 // Refresh "today" when the app comes back to the foreground on a new day.
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden) render(); });
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ load(); render(); } });
 
 load();
 render();

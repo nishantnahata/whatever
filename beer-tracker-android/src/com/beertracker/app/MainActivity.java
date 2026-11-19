@@ -22,6 +22,7 @@ public class MainActivity extends Activity {
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
         s.setSupportZoom(false);
+        web.addJavascriptInterface(new WebBridge(this), "BeerBridge");
         web.setWebViewClient(new WebViewClient());
         setContentView(web);
         if (savedInstanceState != null) {
@@ -29,6 +30,13 @@ public class MainActivity extends Activity {
         } else {
             web.loadUrl("file:///android_asset/index.html");
         }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Pick up pints logged from the widget while the app was in the background.
+        web.evaluateJavascript("window.reloadFromNative && reloadFromNative()", null);
     }
 
     @Override

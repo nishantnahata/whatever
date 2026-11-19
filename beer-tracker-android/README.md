@@ -2,6 +2,7 @@
 
 The weekly beer tracker as a small offline Android app. Log pints, halves, cans and bottles, and see
 drinks, UK units against the 14/week guide, dry days, and the last 8 weeks.
+Includes a home-screen widget (this week's drinks, units, today's count and a one-tap **+ Pint**).
 Data is stored on the phone only. There is no account and no internet permission.
 
 ## Install
@@ -12,6 +13,9 @@ Data is stored on the phone only. There is no account and no internet permission
 
 Needs Android 6.0 or newer.
 
+To add the widget: long-press the home screen → **Widgets** → **Beer Tracker**.
+The **+ Pint** button logs a 568ml pint at the strength of the last drink logged (4.5% if none).
+
 ## Build
 
 ```
@@ -19,7 +23,9 @@ sudo apt-get install aapt apksigner zipalign dalvik-exchange android-sdk-platfor
 ./build.sh
 ```
 
-The app is `assets/index.html` inside a WebView (`src/.../MainActivity.java`).
+The app is `assets/index.html` inside a WebView (`src/.../MainActivity.java`). The drink log lives in
+SharedPreferences (`BeerStore.java`), which the page reaches through `WebBridge.java` and the widget
+(`BeerWidget.java`, `res/layout/widget.xml`) reads directly.
 To ship an update, bump `versionCode` in `AndroidManifest.xml` and sign it with the **same keystore**
 (`~/.android/beer-tracker.keystore`). Otherwise the phone will refuse the update, and uninstalling
 the old app first deletes the logged data.
