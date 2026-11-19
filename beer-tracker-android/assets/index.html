@@ -57,6 +57,11 @@
   .btn{background:var(--amber);color:#2a1f14;border:none;border-radius:12px;padding:11px;font:inherit;font-weight:600;cursor:pointer}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
   .row label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+  .hint{display:block;font-size:12px;color:var(--muted);margin-top:8px}
+  .hint b{color:var(--amber-d)}
+  .hint button{background:none;border:none;padding:0;color:var(--amber-d);font:inherit;font-weight:600;cursor:pointer;text-decoration:underline}
+  label .hint{margin-top:0;font-size:11px}
+  input.past{border-color:var(--amber);background:var(--foam)}
   ul.log{list-style:none;margin:0;padding:0}
   ul.log li{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
   ul.log li:first-child{border-top:none}
@@ -117,8 +122,9 @@
     <div class="quick" id="quick"></div>
     <div class="row">
       <label>Strength (ABV %)<input id="qAbv" type="number" step="0.1" min="0" max="20" value="4.5" inputmode="decimal"></label>
-      <label>When<select id="qDay"></select></label>
+      <label>Date<input id="qDate" type="date" class="date"></label>
     </div>
+    <div class="hint" id="qHint">Forgot one? Change the date to log it on an earlier day.</div>
     <details>
       <summary>Add with details</summary>
       <form class="custom" id="customForm">
@@ -126,7 +132,8 @@
         <label>Size (ml)<input id="cMl" type="number" min="1" value="568" inputmode="numeric"></label>
         <label>ABV %<input id="cAbv" type="number" step="0.1" min="0" value="4.5" inputmode="decimal"></label>
         <label>How many<input id="cQty" type="number" min="1" max="20" value="1" inputmode="numeric"></label>
-        <label>Day<select id="cDay"></select></label>
+        <label>Date<input id="cDate" type="date" class="date"></label>
+        <label class="full">Time (optional)<input id="cTime" type="time"><small class="hint">Leave blank for now (today) or 8pm (earlier days)</small></label>
         <button class="btn full" type="submit">Add</button>
       </form>
     </details>
@@ -196,25 +203,57 @@ function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 function curStart(){ return addDays(weekStart(new Date()), weekOffset*7); }
 function inWeek(start){ const end=addDays(start,7); return entries.filter(e=>e.ts>=+start && e.ts<+end); }
 
-function fillDaySelects(){
-  const start=curStart(); const today=new Date(); today.setHours(0,0,0,0);
-  const opts=[]; let def=0;
-  for(let i=0;i<7;i++){
-    const d=addDays(start,i);
-    if(d>today) break;
-    const isToday=+d===+today;
-    if(isToday) def=i;
-    opts.push(`<option value="${i}">${isToday?'Today':DOW[i]+' '+d.getDate()}</option>`);
-  }
-  if(!opts.length) opts.push('<option value="0">Mon</option>');
-  if(weekOffset<0) def=opts.length-1;
-  for(const id of ['qDay','cDay']){ const s=document.getElementById(id); s.innerHTML=opts.join(''); s.value=def; }
+// --- Dates for logging (today or any earlier day, up to a year back) ---
+let dateTouched = false;   // user picked a date themselves; don't overwrite it on re-render
+function pad(n){ return String(n).padStart(2,'0'); }
+function isoDate(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function parseIso(s){ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||''); return m ? new Date(+m[1], +m[2]-1, +m[3]) : null; }
+function todayStart(){ const t=new Date(); t.setHours(0,0,0,0); return t; }
+function minDate(){ return addDays(weekStart(new Date()), -52*7); }
+function dayLabel(d){ return d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}); }
+function defaultDate(){
+  if(weekOffset===0) return todayStart();
+  return addDays(curStart(), 6);   // Sunday of the week being viewed
 }
-
-function tsFor(dayIdx){
-  const d=addDays(curStart(), +dayIdx); const now=new Date();
-  if(d.toDateString()===now.toDateString()) return Date.now();
-  d.setHours(20,0,0,0); return +d;
+function syncDates(){
+  const today=todayStart();
+  for(const id of ['qDate','cDate']){
+    const el=document.getElementById(id);
+    el.max=isoDate(today); el.min=isoDate(minDate());
+    const cur=parseIso(el.value);
+    if(!dateTouched || !cur || cur>today) el.value=isoDate(defaultDate());
+  }
+  updateDateHint();
+}
+function setDates(v){
+  for(const id of ['qDate','cDate']) document.getElementById(id).value=v;
+  dateTouched=true; updateDateHint();
+}
+function updateDateHint(){
+  const d=parseIso(document.getElementById('qDate').value);
+  const past = d && +d!==+todayStart();
+  for(const id of ['qDate','cDate']) document.getElementById(id).classList.toggle('past', !!past);
+  document.getElementById('qHint').innerHTML = past
+    ? `Logging to <b>${esc(dayLabel(d))}</b> · <button type="button" id="toToday">back to today</button>`
+    : 'Forgot one? Change the date to log it on an earlier day.';
+}
+// Timestamp for a drink on the given date. Returns {ts} or {error}.
+function tsFrom(dateStr, timeStr){
+  const d=parseIso(dateStr);
+  if(!d) return {error:'Pick a date first'};
+  if(d<minDate()) return {error:'Dates can go back up to a year'};
+  const now=Date.now();
+  const isToday = +d===+todayStart();
+  const t=/^(\d{2}):(\d{2})/.exec(timeStr||'');
+  if(t) d.setHours(+t[1], +t[2], 0, 0);
+  else if(isToday) return {ts: now};
+  else d.setHours(20,0,0,0);
+  if(+d>now) return {error: isToday ? 'That time hasn’t happened yet' : 'Can’t log drinks in the future'};
+  return {ts:+d};
+}
+function showWeekOf(ts){
+  const off=Math.round((weekStart(new Date(ts)) - weekStart(new Date()))/(7*86400000));
+  weekOffset=Math.max(-52, Math.min(0, off));
 }
 
 function render(){
@@ -267,7 +306,7 @@ function render(){
     `<div class="hb${w.i===weekOffset?' sel':''}" data-off="${w.i}"><div class="c">${w.n}</div><div class="col" style="height:${w.n/hm*70||3}px"></div><div class="d">${w.s.getDate()}/${w.s.getMonth()+1}</div></div>`
   ).join('');
 
-  fillDaySelects();
+  syncDates();
 }
 
 function toast(msg){
@@ -297,8 +336,16 @@ document.getElementById('quick').addEventListener('click',ev=>{
   const b=ev.target.closest('.q'); if(!b) return;
   const s=SIZES.find(x=>x.key===b.dataset.k);
   const abv=parseFloat(document.getElementById('qAbv').value)||4.5;
-  const e=addEntry({ts:tsFor(document.getElementById('qDay').value), ml:s.ml, abv, name:'', size:s.key});
-  if(e){ lastAdded=e.id; toast(`${s.label} added · ${fmt1(units(e))} units`); }
+  const w=tsFrom(document.getElementById('qDate').value, '');
+  if(w.error){ toast(w.error); return; }
+  showWeekOf(w.ts);
+  const e=addEntry({ts:w.ts, ml:s.ml, abv, name:'', size:s.key});
+  if(!e) return;
+  lastAdded=e.id;
+  const d=new Date(w.ts);
+  toast(d.toDateString()===new Date().toDateString()
+    ? `${s.label} added · ${fmt1(units(e))} units`
+    : `${s.label} added to ${dayLabel(d)}`);
 });
 document.getElementById('customForm').addEventListener('submit',ev=>{
   ev.preventDefault();
@@ -307,10 +354,15 @@ document.getElementById('customForm').addEventListener('submit',ev=>{
   const qty=Math.min(20,Math.max(1,parseInt(document.getElementById('cQty').value)||1));
   const name=document.getElementById('cName').value.trim();
   const size=(SIZES.find(s=>s.ml===ml)||{}).key||'';
-  const ts=tsFor(document.getElementById('cDay').value);
-  for(let i=0;i<qty;i++){ const e=addEntry({ts:ts+i, ml, abv, name, size}); if(e) lastAdded=e.id; }
-  toast(`${qty} added`);
-  document.getElementById('cName').value=''; document.getElementById('cQty').value=1;
+  const w=tsFrom(document.getElementById('cDate').value, document.getElementById('cTime').value);
+  if(w.error){ toast(w.error); return; }
+  showWeekOf(w.ts);
+  let added=0;
+  for(let i=0;i<qty;i++){ const e=addEntry({ts:w.ts+i, ml, abv, name, size}); if(e){ lastAdded=e.id; added++; } }
+  if(!added) return;
+  const d=new Date(w.ts);
+  toast(`${added} added${d.toDateString()===new Date().toDateString() ? '' : ' to '+dayLabel(d)}`);
+  document.getElementById('cName').value=''; document.getElementById('cQty').value=1; document.getElementById('cTime').value='';
 });
 document.getElementById('log').addEventListener('click',ev=>{
   const b=ev.target.closest('.del'); if(b) removeEntry(b.dataset.id);
@@ -319,10 +371,17 @@ document.getElementById('undo').addEventListener('click',()=>{
   if(lastAdded){ removeEntry(lastAdded); lastAdded=null; }
   document.getElementById('toast').classList.remove('show');
 });
-document.getElementById('prev').onclick=()=>{ if(weekOffset>-52){weekOffset--; render();} };
-document.getElementById('next').onclick=()=>{ if(weekOffset<0){weekOffset++; render();} };
+document.getElementById('prev').onclick=()=>{ if(weekOffset>-52){weekOffset--; dateTouched=false; render();} };
+document.getElementById('next').onclick=()=>{ if(weekOffset<0){weekOffset++; dateTouched=false; render();} };
 document.getElementById('hist').addEventListener('click',ev=>{
-  const b=ev.target.closest('.hb'); if(b){ weekOffset=+b.dataset.off; render(); }
+  const b=ev.target.closest('.hb'); if(b){ weekOffset=+b.dataset.off; dateTouched=false; render(); }
+});
+// Keep the two date pickers in step; picking a date doesn't move the week view until you log.
+for(const id of ['qDate','cDate']){
+  document.getElementById(id).addEventListener('change',ev=>{ if(ev.target.value) setDates(ev.target.value); });
+}
+document.getElementById('qHint').addEventListener('click',ev=>{
+  if(ev.target.id==='toToday'){ weekOffset=0; dateTouched=false; render(); }
 });
 
 // Refresh "today" when the app comes back to the foreground on a new day.

@@ -13,6 +13,9 @@ Data is stored on the phone only. There is no account and no internet permission
 
 Needs Android 6.0 or newer.
 
+Forgot to log something? Change the **Date** under Quick add (or set a date and time in
+**Add with details**) to log it on any day up to a year back.
+
 To add the widget: long-press the home screen → **Widgets** → **Beer Tracker**.
 The **+ Pint** button logs a 568ml pint at the strength of the last drink logged (4.5% if none).
 
