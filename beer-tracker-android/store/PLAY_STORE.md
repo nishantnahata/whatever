@@ -164,5 +164,5 @@ a separate app next to the sideloaded one. To move the data:
 
 Google needs the privacy policy at a public web address, and inside the app (done: the app's "Privacy" link
 opens a bundled copy). `app/src/main/assets/privacy.html` is ready apart
-from the contact email (replace both `CONTACT_EMAIL` placeholders with the app's email). Any
+from the contact email (contact email filled in). Any
 static host works. You just need the final link to paste into step 4.

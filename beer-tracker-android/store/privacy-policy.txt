@@ -1,0 +1,39 @@
+Beer Tracker: Privacy Policy
+
+Last updated: 20 November 2026
+
+Summary
+
+Beer Tracker does not collect, send or share any of your data. Everything you log stays on your phone.
+
+What the app stores
+
+The drinks you log (date and time, size, strength and an optional beer name) are saved only in the app's private storage on your device. They are used only to show your totals, history and home-screen widget.
+
+What the app sends
+
+Nothing. The app has no internet permission, no account, no analytics, no advertising and no third-party code that collects data.
+
+Backups you make
+
+If you use Export, the app writes a backup file to the place you choose, such as your device storage or a cloud drive. That file is then handled by the place you saved it to, under its own terms. Beer Tracker never sees or uploads it. Import only reads the file you pick.
+
+Android device backup
+
+If Android's own device backup is turned on, Android may include the app's data in your personal device backup, which is managed by Google under your Google account settings. You can turn this off in your phone's settings.
+
+Deleting your data
+
+Delete individual drinks in the app, or uninstall the app to remove all of its data from your phone.
+
+Children
+
+Beer Tracker is intended for adults of legal drinking age and is not directed at children.
+
+Changes
+
+If this policy changes, the updated version will be posted on this page with a new date.
+
+Contact
+
+Questions: dataracegen@gmail.com
