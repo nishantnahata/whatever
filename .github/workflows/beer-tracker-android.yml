@@ -51,9 +51,17 @@ jobs:
         if: env.BT_KEYSTORE_FILE != ''
         run: jarsigner -verify app/build/outputs/bundle/release/app-release.aab
 
+      - name: Show app details
+        run: |
+          AAPT2="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)aapt2"
+          "$AAPT2" dump badging app/build/outputs/apk/release/*.apk | grep -E "^(package|sdkVersion|targetSdkVersion|application-label|launchable-activity)"
+          ls -la app/build/outputs/bundle/release/
+
       - name: Lint (report only)
         continue-on-error: true
-        run: ./gradlew --no-daemon lintRelease
+        run: |
+          ./gradlew --no-daemon lintRelease
+          cat app/build/reports/lint-results-release.txt
 
       - uses: actions/upload-artifact@v4
         with:

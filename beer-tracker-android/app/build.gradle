@@ -45,5 +45,7 @@ android {
     lint {
         // Lint still runs as its own CI step and its report is kept; it just can't block a release.
         checkReleaseBuilds false
+        textReport true
+        textOutput file('build/reports/lint-results-release.txt')
     }
 }

@@ -23,6 +23,12 @@ app and tap **Import**. Importing adds to what's already there and skips drinks 
 To add the widget: long-press the home screen → **Widgets** → **Beer Tracker**.
 The **+ Pint** button logs a 568ml pint at the strength of the last drink logged (4.5% if none).
 
+## Google Play
+
+See [`store/PLAY_STORE.md`](store/PLAY_STORE.md) for the full publishing guide, listing text and
+store graphics. Play bundles are built by GitHub Actions (`.github/workflows/beer-tracker-android.yml`)
+and signed with the upload key stored in repository secrets.
+
 ## Build
 
 ```
@@ -30,9 +36,9 @@ sudo apt-get install aapt apksigner zipalign dalvik-exchange android-sdk-platfor
 ./build.sh
 ```
 
-The app is `assets/index.html` inside a WebView (`src/.../MainActivity.java`). The drink log lives in
+The app is `app/src/main/assets/index.html` inside a WebView (`app/src/main/java/.../MainActivity.java`). The drink log lives in
 SharedPreferences (`BeerStore.java`), which the page reaches through `WebBridge.java` and the widget
 (`BeerWidget.java`, `res/layout/widget.xml`) reads directly.
-To ship an update, bump `versionCode` in `AndroidManifest.xml` and sign it with the **same keystore**
+To ship an update, bump `versionCode` in `app/build.gradle` and sign it with the **same keystore**
 (`~/.android/beer-tracker.keystore`). Otherwise the phone will refuse the update, and uninstalling
 the old app first deletes the logged data.
