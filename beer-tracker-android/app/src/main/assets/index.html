@@ -85,6 +85,12 @@
   .toast.show{transform:translateX(-50%) translateY(0)}
   .toast button{background:none;border:none;color:var(--amber);font:inherit;font-weight:700;cursor:pointer}
   .sync{font-size:11px;color:var(--muted);text-align:center;margin-top:8px}
+  .sync a{color:var(--amber-d)}
+  .sheet{position:fixed;inset:0;z-index:20;background:var(--bg);display:flex;flex-direction:column}
+  .sheet[hidden]{display:none}
+  .sheet-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line)}
+  .sheet-bar button{background:none;border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:6px 12px;font:inherit;font-weight:600}
+  .sheet iframe{flex:1;border:0;width:100%;background:var(--bg)}
   .bk-note{margin:0;font-size:13px;color:var(--muted)}
   .bk-note b{color:var(--ink);font-weight:600}
   .bk-stat{font-size:13px;margin:10px 0 12px;font-weight:600}
@@ -168,7 +174,11 @@
     </div>
     <input type="file" id="importFile" accept=".json,application/json,text/plain" hidden>
   </div>
-  <div class="sync" id="sync">Saved on this phone · add the Beer Tracker widget from your home screen</div>
+  <div class="sync" id="sync">Saved on this phone · add the Beer Tracker widget from your home screen · <a href="#" id="privacyLink">Privacy</a></div>
+</div>
+<div class="sheet" id="privacySheet" hidden>
+  <div class="sheet-bar"><b>Privacy policy</b><button type="button" id="privacyClose">Close</button></div>
+  <iframe id="privacyFrame" title="Privacy policy"></iframe>
 </div>
 <div class="toast" id="toast"><span id="toastMsg"></span><button id="undo">Undo</button></div>
 
@@ -504,6 +514,14 @@ document.getElementById('importFile').addEventListener('change', ev=>{
   r.onerror=()=>toast('Couldn’t open that file');
   r.readAsText(f);
 });
+
+// Privacy policy: bundled in the app (works offline), shown full-screen.
+document.getElementById('privacyLink').addEventListener('click',ev=>{
+  ev.preventDefault();
+  const f=document.getElementById('privacyFrame'); if(!f.src) f.src='privacy.html';
+  document.getElementById('privacySheet').hidden=false;
+});
+document.getElementById('privacyClose').addEventListener('click',()=>{ document.getElementById('privacySheet').hidden=true; });
 
 // Refresh "today" when the app comes back to the foreground on a new day.
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ load(); render(); } });

@@ -16,7 +16,7 @@ Files:
 - `icon-512.png`: store icon (512×512)
 - `feature-graphic.png`: feature graphic (1024×500)
 - `screenshots/*.png`: 5 phone screenshots (1080×1920)
-- `privacy-policy.html`: privacy policy (needs a contact email, then a public web address)
+- `../app/src/main/assets/privacy.html`: privacy policy. Also shown inside the app; needs a contact email, then a public web address.
 
 ---
 
@@ -61,7 +61,7 @@ Answer each section like this:
 
 | Section | Answer |
 |---|---|
-| **Privacy policy** | The public URL of `privacy-policy.html` (see "Privacy policy hosting" below) |
+| **Privacy policy** | The public URL where you published `privacy.html` (see "Privacy policy hosting" below) |
 | **App access** | All functionality is available without special access (no login) |
 | **Ads** | No, my app does not contain ads |
 | **Content rating** | Start the questionnaire. Email: your app contact email. Category: **All Other App Types** (it's a utility, not a game, social or news app). Answer **No** to violence, sexual content, profanity, gambling, user-to-user interaction, sharing location, and digital purchases. For **alcohol, tobacco or drugs**, answer **Yes: references to alcohol** (it logs drinks). It doesn't sell alcohol or show anyone drinking. Expect a teen-or-older rating. |
@@ -162,6 +162,7 @@ a separate app next to the sideloaded one. To move the data:
 
 ## Privacy policy hosting
 
-Google needs the privacy policy at a public web address. `privacy-policy.html` is ready apart
+Google needs the privacy policy at a public web address, and inside the app (done: the app's "Privacy" link
+opens a bundled copy). `app/src/main/assets/privacy.html` is ready apart
 from the contact email (replace both `CONTACT_EMAIL` placeholders with the app's email). Any
 static host works. You just need the final link to paste into step 4.
