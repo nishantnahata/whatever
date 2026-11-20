@@ -85,6 +85,12 @@
   .toast.show{transform:translateX(-50%) translateY(0)}
   .toast button{background:none;border:none;color:var(--amber);font:inherit;font-weight:700;cursor:pointer}
   .sync{font-size:11px;color:var(--muted);text-align:center;margin-top:8px}
+  .bk-note{margin:0;font-size:13px;color:var(--muted)}
+  .bk-note b{color:var(--ink);font-weight:600}
+  .bk-stat{font-size:13px;margin:10px 0 12px;font-weight:600}
+  .bk-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .btn.ghost{background:none;color:var(--amber-d);border:1.5px solid var(--amber)}
+  .btn:disabled{opacity:.5}
 </style>
 </head>
 <body>
@@ -151,6 +157,17 @@
     <h2>Last 8 weeks</h2>
     <div class="hist" id="hist"></div>
   </div>
+
+  <div class="card">
+    <h2>Backup</h2>
+    <p class="bk-note">Switching phones? <b>Export</b> saves your drinks to a file. Keep it somewhere you can reach from the new phone, like Google Drive or a message to yourself. Then install Beer Tracker on the new phone and tap <b>Import</b>.</p>
+    <div class="bk-stat" id="bkStat"></div>
+    <div class="bk-btns">
+      <button class="btn" id="exportBtn" type="button">Export</button>
+      <button class="btn ghost" id="importBtn" type="button">Import</button>
+    </div>
+    <input type="file" id="importFile" accept=".json,application/json,text/plain" hidden>
+  </div>
   <div class="sync" id="sync">Saved on this phone · add the Beer Tracker widget from your home screen</div>
 </div>
 <div class="toast" id="toast"><span id="toastMsg"></span><button id="undo">Undo</button></div>
@@ -179,7 +196,7 @@ const KEY = 'beer-tracker-v1';
 
 let entries = [];         // {id, ts, ml, abv, name, size}
 let weekOffset = 0;       // 0 = this week
-let lastAdded = null;
+let pendingUndo = null;   // ids removed if the toast's Undo is tapped
 
 // The Android app exposes window.BeerBridge so the log is shared with the home-screen widget.
 // localStorage stays as a mirror (and the only store when opened outside the app).
@@ -322,12 +339,22 @@ function render(){
   ).join('');
 
   syncDates();
+  renderBackupStat();
 }
 
-function toast(msg){
+function toast(msg, undoIds, ms){
+  pendingUndo = undoIds && undoIds.length ? undoIds : null;
   document.getElementById('toastMsg').textContent=msg;
+  document.getElementById('undo').style.display = pendingUndo ? '' : 'none';
   const t=document.getElementById('toast'); t.classList.add('show');
-  clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),3500);
+  clearTimeout(toast._t); toast._t=setTimeout(()=>{ t.classList.remove('show'); pendingUndo=null; }, ms||3500);
+}
+function removeEntries(ids){
+  if(bridge) load();
+  const drop=new Set(ids);
+  entries=entries.filter(x=>!drop.has(x.id));
+  if(!save()) toast('Couldn’t undo');
+  render();
 }
 
 function addEntry(e){
@@ -356,11 +383,10 @@ document.getElementById('quick').addEventListener('click',ev=>{
   showWeekOf(w.ts);
   const e=addEntry({ts:w.ts, ml:s.ml, abv, name:'', size:s.key});
   if(!e) return;
-  lastAdded=e.id;
   const d=new Date(w.ts);
   toast(d.toDateString()===new Date().toDateString()
     ? `${s.label} added · ${fmt1(units(e))} units`
-    : `${s.label} added to ${dayLabel(d)}`);
+    : `${s.label} added to ${dayLabel(d)}`, [e.id]);
 });
 document.getElementById('customForm').addEventListener('submit',ev=>{
   ev.preventDefault();
@@ -372,18 +398,18 @@ document.getElementById('customForm').addEventListener('submit',ev=>{
   const w=tsFrom(document.getElementById('cDate').value, document.getElementById('cTime').value);
   if(w.error){ toast(w.error); return; }
   showWeekOf(w.ts);
-  let added=0;
-  for(let i=0;i<qty;i++){ const e=addEntry({ts:w.ts+i, ml, abv, name, size}); if(e){ lastAdded=e.id; added++; } }
-  if(!added) return;
+  const ids=[];
+  for(let i=0;i<qty;i++){ const e=addEntry({ts:w.ts+i, ml, abv, name, size}); if(e) ids.push(e.id); }
+  if(!ids.length) return;
   const d=new Date(w.ts);
-  toast(`${added} added${d.toDateString()===new Date().toDateString() ? '' : ' to '+dayLabel(d)}`);
+  toast(`${ids.length} added${d.toDateString()===new Date().toDateString() ? '' : ' to '+dayLabel(d)}`, ids);
   document.getElementById('cName').value=''; document.getElementById('cQty').value=1; document.getElementById('cTime').value='';
 });
 document.getElementById('log').addEventListener('click',ev=>{
   const b=ev.target.closest('.del'); if(b) removeEntry(b.dataset.id);
 });
 document.getElementById('undo').addEventListener('click',()=>{
-  if(lastAdded){ removeEntry(lastAdded); lastAdded=null; }
+  if(pendingUndo){ removeEntries(pendingUndo); pendingUndo=null; }
   document.getElementById('toast').classList.remove('show');
 });
 document.getElementById('prev').onclick=()=>{ if(weekOffset>-52){weekOffset--; dateTouched=false; render();} };
@@ -397,6 +423,86 @@ for(const id of ['qDate','cDate']){
 }
 document.getElementById('qHint').addEventListener('click',ev=>{
   if(ev.target.id==='toToday'){ weekOffset=0; dateTouched=false; render(); }
+});
+
+// --- Backup: export to a file / import from one (merges; never deletes what's already here) ---
+const BACKUP_APP='beer-tracker';
+function backupName(){ return `beer-tracker-backup-${isoDate(new Date())}.json`; }
+function renderBackupStat(){
+  const el=document.getElementById('bkStat');
+  if(!entries.length){ el.textContent='No drinks logged yet.'; return; }
+  const first=new Date(Math.min(...entries.map(e=>e.ts)));
+  el.textContent=`${entries.length} drink${entries.length===1?'':'s'} logged since ${first.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`;
+}
+function exportBackup(){
+  if(bridge) load();
+  if(!entries.length){ toast('Nothing to export yet'); return; }
+  const json=JSON.stringify({app:BACKUP_APP, format:1, exportedAt:new Date().toISOString(), count:entries.length, entries}, null, 1);
+  if(bridge){ bridge.exportData(json, backupName()); return; }
+  // Outside the app (plain browser): download the file.
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([json],{type:'application/json'}));
+  a.download=backupName(); document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 10000);
+  window.onNativeExport(true,'');
+}
+window.onNativeExport=function(ok, err){
+  toast(ok ? `Backup saved · ${entries.length} drink${entries.length===1?'':'s'}` : (err||'Couldn’t save the backup'));
+};
+function importBackup(){
+  if(bridge){ bridge.importData(); return; }
+  document.getElementById('importFile').click();
+}
+window.onNativeImport=function(ok, text){
+  if(!ok){ toast(text||'Couldn’t open that file'); return; }
+  handleImportText(text);
+};
+// Turns a backup file's text into clean entries, or throws a message for the user.
+function parseBackup(text){
+  let data;
+  try{ data=JSON.parse(String(text).replace(/^\uFEFF/,'')); }catch(e){ throw 'That file isn’t a Beer Tracker backup'; }
+  const list = Array.isArray(data) ? data : (data && Array.isArray(data.entries) ? data.entries : null);
+  if(!list) throw 'That file isn’t a Beer Tracker backup';
+  const maxTs=Date.now()+86400000, minTs=Date.UTC(2000,0,1);
+  const out=[]; let skipped=0;
+  for(const r of list){
+    const ts=Number(r&&r.ts), ml=Number(r&&r.ml), abv=Number(r&&r.abv);
+    if(!r || !isFinite(ts) || ts<minTs || ts>maxTs || !isFinite(ml) || ml<=0 || ml>5000 || !isFinite(abv) || abv<0 || abv>100){ skipped++; continue; }
+    const size = SIZES.some(s=>s.key===r.size) ? r.size : '';
+    const name = typeof r.name==='string' ? r.name.slice(0,60) : '';
+    const id = (typeof r.id==='string' && r.id && r.id.length<=40) ? r.id : `imp-${Math.round(ts).toString(36)}-${Math.round(ml)}-${abv}`;
+    out.push({id, ts:Math.round(ts), ml:Math.round(ml), abv:Math.round(abv*10)/10, name, size});
+  }
+  return {entries:out, skipped};
+}
+function handleImportText(text){
+  let parsed;
+  try{ parsed=parseBackup(text); }catch(msg){ toast(String(msg), null, 5000); return; }
+  if(!parsed.entries.length){ toast('No drinks found in that file', null, 5000); return; }
+  if(bridge) load();
+  const have=new Set(entries.map(e=>e.id));
+  const fresh=[]; 
+  for(const e of parsed.entries){ if(!have.has(e.id)){ have.add(e.id); fresh.push(e); } }
+  const dupes=parsed.entries.length-fresh.length;
+  if(!fresh.length){ toast(`Already up to date · all ${parsed.entries.length} drinks are here`, null, 5000); return; }
+  entries=entries.concat(fresh);
+  if(!save()){ load(); render(); toast('Couldn’t save the imported drinks', null, 5000); return; }
+  weekOffset=0; dateTouched=false; render();
+  let msg=`Imported ${fresh.length} drink${fresh.length===1?'':'s'}`;
+  if(dupes) msg+=` · ${dupes} already here`;
+  if(parsed.skipped) msg+=` · ${parsed.skipped} unreadable`;
+  toast(msg, fresh.map(e=>e.id), 7000);
+}
+document.getElementById('exportBtn').addEventListener('click', exportBackup);
+document.getElementById('importBtn').addEventListener('click', importBackup);
+document.getElementById('importFile').addEventListener('change', ev=>{
+  const f=ev.target.files && ev.target.files[0]; ev.target.value='';
+  if(!f) return;
+  if(f.size>10*1024*1024){ toast('That file is too big to be a Beer Tracker backup'); return; }
+  const r=new FileReader();
+  r.onload=()=>handleImportText(r.result);
+  r.onerror=()=>toast('Couldn’t open that file');
+  r.readAsText(f);
 });
 
 // Refresh "today" when the app comes back to the foreground on a new day.

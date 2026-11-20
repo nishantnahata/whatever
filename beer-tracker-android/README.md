@@ -16,6 +16,10 @@ Needs Android 6.0 or newer.
 Forgot to log something? Change the **Date** under Quick add (or set a date and time in
 **Add with details**) to log it on any day up to a year back.
 
+Switching phones? In the app's **Backup** section, tap **Export** on the old phone and save the file
+somewhere the new phone can reach (Google Drive, a message to yourself). On the new phone, install the
+app and tap **Import**. Importing adds to what's already there and skips drinks it already has.
+
 To add the widget: long-press the home screen → **Widgets** → **Beer Tracker**.
 The **+ Pint** button logs a 568ml pint at the strength of the last drink logged (4.5% if none).
 
