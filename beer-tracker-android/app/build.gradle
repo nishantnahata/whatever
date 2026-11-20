@@ -1,0 +1,49 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Release signing comes from environment variables (set as GitHub Actions secrets), never from the repo:
+//   BT_KEYSTORE_FILE, BT_KEYSTORE_PASSWORD, BT_KEY_ALIAS, BT_KEY_PASSWORD
+def keystoreFile = System.getenv('BT_KEYSTORE_FILE')
+def canSign = keystoreFile && file(keystoreFile).exists()
+
+android {
+    namespace 'com.beertracker.app'          // Java package of the code (R class)
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'com.ambertally.beertracker'   // the app's permanent identity on Google Play
+        minSdk 23
+        targetSdk 36
+        versionCode 6
+        versionName '1.5'
+    }
+
+    signingConfigs {
+        if (canSign) {
+            release {
+                storeFile file(keystoreFile)
+                storePassword System.getenv('BT_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('BT_KEY_ALIAS')
+                keyPassword System.getenv('BT_KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (canSign) signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    lint {
+        // Lint still runs as its own CI step and its report is kept; it just can't block a release.
+        checkReleaseBuilds false
+    }
+}

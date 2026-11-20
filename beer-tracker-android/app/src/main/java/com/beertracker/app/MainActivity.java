@@ -5,6 +5,9 @@ import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.view.View;
+import android.view.WindowInsets;
+import android.widget.FrameLayout;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -27,8 +30,9 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        int bg = getResources().getColor(R.color.bg, getTheme());
         web = new WebView(this);
-        web.setBackgroundColor(getResources().getColor(R.color.bg, getTheme()));
+        web.setBackgroundColor(bg);
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
@@ -38,7 +42,22 @@ public class MainActivity extends Activity {
         s.setSupportZoom(false);
         web.addJavascriptInterface(new WebBridge(this), "BeerBridge");
         web.setWebViewClient(new WebViewClient());
-        setContentView(web);
+        // Android 15+ draws the app behind the status/navigation bars (and, with adjustResize, the keyboard
+        // insets arrive here too). Pad a container by those insets so the page never sits underneath them.
+        FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(bg);
+        root.addView(web, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        root.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
+            @Override
+            @SuppressWarnings("deprecation")
+            public WindowInsets onApplyWindowInsets(View v, WindowInsets in) {
+                v.setPadding(in.getSystemWindowInsetLeft(), in.getSystemWindowInsetTop(),
+                        in.getSystemWindowInsetRight(), in.getSystemWindowInsetBottom());
+                return in.consumeSystemWindowInsets();
+            }
+        });
+        setContentView(root);
         if (savedInstanceState != null) {
             web.restoreState(savedInstanceState);
         } else {
@@ -165,11 +184,6 @@ public class MainActivity extends Activity {
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         web.saveState(outState);
-    }
-
-    @Override
-    public void onBackPressed() {
-        if (web.canGoBack()) web.goBack(); else super.onBackPressed();
     }
 
     @Override

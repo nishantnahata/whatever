@@ -5,10 +5,13 @@ from PIL import Image, ImageDraw
 SIZES = {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}
 S = 768  # draw large, downscale for smooth edges
 
-def draw():
+BG = (42, 31, 20, 255)
+
+def draw(tile=True):
     img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.rounded_rectangle([24, 24, S - 24, S - 24], radius=170, fill=(42, 31, 20, 255))
+    if tile:
+        d.rounded_rectangle([24, 24, S - 24, S - 24], radius=170, fill=BG)
     # glass outline points (trapezoid)
     top_y, bot_y = 170, 640
     tl, tr, bl, br = 230, 538, 270, 498
@@ -28,10 +31,28 @@ def draw():
     d.arc([430, 300, 620, 520], start=-90, end=90, fill=(245, 234, 216, 255), width=22)
     return img
 
+def glass_on(canvas_px, glass_frac, bg=None):
+    """The glass alone, centred on a square canvas, its height = glass_frac of the canvas."""
+    g = draw(tile=False)
+    g = g.crop(g.getbbox())
+    h = int(canvas_px * glass_frac)
+    w = round(g.width * h / g.height)
+    g = g.resize((w, h), Image.LANCZOS)
+    c = Image.new("RGBA", (canvas_px, canvas_px), bg or (0, 0, 0, 0))
+    # nudge left a little so the glass body (not glass + handle) sits in the centre
+    c.alpha_composite(g, ((canvas_px - w) // 2 - canvas_px // 40, (canvas_px - h) // 2))
+    return c
+
+# Usage: make_icon.py <res dir> <store dir>
+res, store = sys.argv[1], sys.argv[2]
 big = draw()
-out = sys.argv[1]
+FG = {"mdpi": 108, "hdpi": 162, "xhdpi": 216, "xxhdpi": 324, "xxxhdpi": 432}
 for name, px in SIZES.items():
-    p = os.path.join(out, f"mipmap-{name}")
+    p = os.path.join(res, f"mipmap-{name}")
     os.makedirs(p, exist_ok=True)
     big.resize((px, px), Image.LANCZOS).save(os.path.join(p, "ic_launcher.png"))
-big.resize((512, 512), Image.LANCZOS).save(os.path.join(out, "..", "icon-512.png"))
+    # Adaptive icon foreground (Android 8+): 108dp canvas, art kept inside the 66dp safe zone.
+    glass_on(FG[name], 0.50).save(os.path.join(p, "ic_launcher_foreground.png"))
+os.makedirs(store, exist_ok=True)
+# Play Store icon: full-bleed square (Play rounds the corners itself), 512x512.
+glass_on(512, 0.66, BG).convert("RGB").save(os.path.join(store, "icon-512.png"))
